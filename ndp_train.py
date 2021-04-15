@@ -100,7 +100,8 @@ def train_main(
                keyword_to_lr_mult=None,
                auto_continue=False,
 lasso_keyword_to_strength=None,
-save_hdf5_epochs=10000):
+save_hdf5_epochs=10000,
+experiment=None):
 
     if no_l2_keywords is None:
         no_l2_keywords = []
@@ -109,7 +110,7 @@ save_hdf5_epochs=10000):
 
     ensure_dir(cfg.output_dir)
     ensure_dir(cfg.tb_dir)
-    with Engine(local_rank=local_rank) as engine:
+    with Engine(local_rank=local_rank, experiment=experiment) as engine:
         engine.setup_log(
             name='train', log_dir=cfg.output_dir, file_name='log.txt')
 
@@ -211,7 +212,7 @@ save_hdf5_epochs=10000):
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                                  val_data=val_data, criterion=criterion, descrip_str='Init',
                                  dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE,
-                                 tb_writer=tb_writer)
+                                 tb_writer=tb_writer, experiment=experiment)
 
 
             top1 = AvgMeter()
@@ -235,6 +236,15 @@ save_hdf5_epochs=10000):
                                                  if_accum_grad, gradient_mask_tensor=gradient_mask_tensor,
                                                  lasso_keyword_to_strength=lasso_keyword_to_strength)
                 train_net_time_end = time.time()
+
+                experiment.log_metric("train_Top1-Acc", acc, step=iteration,
+                                      epoch=epoch)
+                experiment.log_metric("train_Top5-Acc", acc5, step=iteration,
+                                      epoch=epoch)
+                experiment.log_metric("train_Loss", loss, step=iteration,
+                                      epoch=epoch)
+                experiment.log_metric("learning_rate", scheduler.get_lr()[0],
+                                      step=iteration, epoch=epoch)
 
                 if iteration > TRAIN_SPEED_START * max_iters and iteration < TRAIN_SPEED_END * max_iters:
                     recorded_train_examples += cfg.global_batch_size
@@ -288,7 +298,8 @@ save_hdf5_epochs=10000):
                     cfg.val_epoch_period > 0 and (epoch >= cfg.max_epochs - 10 or epoch % cfg.val_epoch_period == 0):
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                                  val_data=val_data, criterion=criterion, descrip_str=discrip_str,
-                                 dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE, tb_writer=tb_writer)
+                                 dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE, tb_writer=tb_writer,
+                                 experiment=experiment)
 
             if iteration >= max_iters:
                 break
