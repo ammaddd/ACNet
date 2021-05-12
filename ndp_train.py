@@ -101,7 +101,7 @@ def train_main(
                auto_continue=False,
 lasso_keyword_to_strength=None,
 save_hdf5_epochs=10000,
-experiment=None):
+comet_logger=None):
 
     if no_l2_keywords is None:
         no_l2_keywords = []
@@ -110,7 +110,7 @@ experiment=None):
 
     ensure_dir(cfg.output_dir)
     ensure_dir(cfg.tb_dir)
-    with Engine(local_rank=local_rank, experiment=experiment) as engine:
+    with Engine(local_rank=local_rank, comet_logger=comet_logger) as engine:
         engine.setup_log(
             name='train', log_dir=cfg.output_dir, file_name='log.txt')
 
@@ -212,7 +212,7 @@ experiment=None):
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                                  val_data=val_data, criterion=criterion, descrip_str='Init',
                                  dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE,
-                                 tb_writer=tb_writer, experiment=experiment)
+                                 tb_writer=tb_writer, comet_logger=comet_logger)
 
 
             top1 = AvgMeter()
@@ -237,14 +237,14 @@ experiment=None):
                                                  lasso_keyword_to_strength=lasso_keyword_to_strength)
                 train_net_time_end = time.time()
 
-                experiment.log_metric("train_Top1-Acc", acc, step=iteration,
-                                      epoch=epoch)
-                experiment.log_metric("train_Top5-Acc", acc5, step=iteration,
-                                      epoch=epoch)
-                experiment.log_metric("train_Loss", loss, step=iteration,
-                                      epoch=epoch)
-                experiment.log_metric("learning_rate", scheduler.get_lr()[0],
-                                      step=iteration, epoch=epoch)
+                comet_logger.log_metric("train_Top1-Acc", acc, step=iteration,
+                                        epoch=epoch)
+                comet_logger.log_metric("train_Top5-Acc", acc5, step=iteration,
+                                        epoch=epoch)
+                comet_logger.log_metric("train_Loss", loss, step=iteration,
+                                        epoch=epoch)
+                comet_logger.log_metric("learning_rate", scheduler.get_lr()[0],
+                                        step=iteration, epoch=epoch)
 
                 if iteration > TRAIN_SPEED_START * max_iters and iteration < TRAIN_SPEED_END * max_iters:
                     recorded_train_examples += cfg.global_batch_size
@@ -299,7 +299,7 @@ experiment=None):
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                                  val_data=val_data, criterion=criterion, descrip_str=discrip_str,
                                  dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE, tb_writer=tb_writer,
-                                 experiment=experiment)
+                                 comet_logger=comet_logger)
 
             if iteration >= max_iters:
                 break

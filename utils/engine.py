@@ -30,14 +30,14 @@ class State(object):
 
 class Engine(object):
     def __init__(self, local_rank, for_val_only=False, base_config=None,
-                 experiment=None):
+                 comet_logger=None):
         self.version = 0.01
         self.state = State()
         self.devices = None
         self.distributed = False
         self.logger = None
         self.base_config = base_config
-        self._experiment = experiment
+        self._comet_logger = comet_logger
 
         # if custom_parser is None:
         #     self.parser = argparse.ArgumentParser()
@@ -137,7 +137,7 @@ class Engine(object):
         t_io_begin = time.time()
         try:
             torch.save(state_dict, path)
-            self._experiment.log_model("weights", path)
+            self._comet_logger.log_model("weights", path)
         except:
             print('save {} failed, continue training'.format(path))
         t_end = time.time()
