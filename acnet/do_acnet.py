@@ -1,3 +1,4 @@
+from utils.comet_utils import CometLogger
 from base_config import get_baseconfig_by_epoch
 from model_map import get_dataset_name_by_model_name
 import argparse
@@ -17,10 +18,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--local_rank', default=0, type=int,
         help='process rank on node')
+    parser.add_argument('--comet', type=bool, default=False,
+                        help='enable comet logging (if comet installed)')
 
     start_arg = parser.parse_args()
 
+    comet_logger = CometLogger(start_arg.comet, auto_metric_logging=False)
+    comet_logger.log_others(vars(start_arg))
+    comet_logger.log_code("./utils/engine.py")
+
     network_type = start_arg.arch
+    comet_logger.add_tag(network_type)
     block_type = start_arg.block_type
     conti_or_fs = start_arg.conti_or_fs
     assert conti_or_fs in ['continue', 'fs']
@@ -115,6 +123,7 @@ if __name__ == '__main__':
                                      ckpt_iter_period=40000, tb_iter_period=100, output_dir=log_dir,
                                      tb_dir=log_dir, save_weights=None, val_epoch_period=5, linear_final_lr=lrs.linear_final_lr,
                                      weight_decay_bias=weight_decay_bias, deps=None)
+    comet_logger.log_asset_data(config, "config.yaml")
 
     if block_type == 'acb':
         builder = ACNetBuilder(base_config=config, deploy=False, gamma_init=gamma_init)
@@ -124,7 +133,8 @@ if __name__ == '__main__':
     target_weights = os.path.join(log_dir, 'finish.hdf5')
     if not os.path.exists(target_weights):
         train_main(local_rank=start_arg.local_rank, cfg=config, convbuilder=builder,
-               show_variables=True, auto_continue=auto_continue)
+               show_variables=True, auto_continue=auto_continue,
+               comet_logger=comet_logger)
 
     if block_type == 'acb' and start_arg.local_rank == 0:
         convert_acnet_weights(target_weights, target_weights.replace('.hdf5', '_deploy.hdf5'), eps=1e-5)

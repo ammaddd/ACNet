@@ -63,7 +63,8 @@ def run_eval(val_data, max_iters, net, criterion, discrip_str, dataset_name):
 
 def val_during_train(epoch, iteration, tb_tags,
                       engine, model, val_data, criterion, descrip_str,
-                      dataset_name, test_batch_size, tb_writer):
+                      dataset_name, test_batch_size, tb_writer,
+                      comet_logger=None):
     model.eval()
     num_examples = num_val_examples(dataset_name)
     assert num_examples % test_batch_size == 0
@@ -75,6 +76,8 @@ def val_during_train(epoch, iteration, tb_tags,
     val_loss_value = eval_dict['loss'].item()
     for tag, value in zip(tb_tags, [val_top1_value, val_top5_value, val_loss_value]):
         tb_writer.add_scalars(tag, {'Val': value}, iteration)
+        comet_logger.log_metric("val_{}".format(tag), value, step=iteration,
+                                epoch=epoch)
     engine.log(
         'val at epoch {}, top1={:.5f}, top5={:.5f}, loss={:.6f}'.format(epoch, val_top1_value,
                                                                              val_top5_value,
